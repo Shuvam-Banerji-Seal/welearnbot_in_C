@@ -13,9 +13,8 @@ build/
 credentials.dat
 cookies.txt
 
-# Downloaded course directories
+# Downloaded course directories (but not docs/)
 course_*/
-*/
 
 # IDE files
 .vscode/
