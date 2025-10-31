@@ -147,6 +147,7 @@ char *extract_logintoken(const char *html) {
     size_t len = end - start;
     char *token = malloc(len + 1);
     if (!token) {
+        fprintf(stderr, "Error: Memory allocation failed for logintoken\n");
         return NULL;
     }
     strncpy(token, start, len);
