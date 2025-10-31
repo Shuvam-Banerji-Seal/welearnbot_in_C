@@ -319,6 +319,9 @@ void free_file_list(struct FileList *list) {
 }
 
 // Display files in tree format
+// Note: Uses Unicode emoji characters (📚📁📄) for visual clarity.
+// These work on most modern terminals (Linux, macOS, Windows Terminal).
+// If compatibility is an issue, they can be replaced with ASCII alternatives.
 void display_file_tree(const struct FileList *list) {
     if (!list || list->count == 0) {
         printf("No files found.\n");

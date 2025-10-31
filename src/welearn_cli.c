@@ -215,7 +215,7 @@ int main(void) {
     
     char choice[10];
     if (fgets(choice, sizeof(choice), stdin) == NULL) {
-        choice[0] = '1';  // Default to old behavior
+        strcpy(choice, "1");  // Default to old behavior, properly null-terminated
     }
     
     if (choice[0] == '2') {
@@ -242,7 +242,7 @@ int main(void) {
         
         char view_choice[10];
         if (fgets(view_choice, sizeof(view_choice), stdin) == NULL) {
-            view_choice[0] = '1';
+            strcpy(view_choice, "1");  // Default properly null-terminated
         }
         
         if (view_choice[0] == '2') {

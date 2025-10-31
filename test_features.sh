@@ -18,15 +18,18 @@ fi
 echo -e "\n[TEST 2] Application starts without crashing"
 # Send input to quit early: choose mode 1 but with no valid credentials
 # The app should handle this gracefully
-timeout 2 echo -e "\n" | ./welearn_cli > /tmp/test_output.txt 2>&1
+TEST_OUTPUT=$(mktemp)
+timeout 2 echo -e "\n" | ./welearn_cli > "$TEST_OUTPUT" 2>&1
 EXIT_CODE=$?
 if [ $EXIT_CODE -eq 0 ] || [ $EXIT_CODE -eq 124 ]; then
     echo "✓ PASS: Application starts (timeout or normal exit expected)"
 else
     echo "✗ FAIL: Application crashed with code $EXIT_CODE"
-    cat /tmp/test_output.txt
+    cat "$TEST_OUTPUT"
+    rm -f "$TEST_OUTPUT"
     exit 1
 fi
+rm -f "$TEST_OUTPUT"
 
 # Test 3: Verify new functions are linked
 echo -e "\n[TEST 3] New functions are present in binary"
