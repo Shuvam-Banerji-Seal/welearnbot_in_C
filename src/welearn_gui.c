@@ -22,6 +22,12 @@ typedef struct {
     pthread_t download_thread;
 } AppState;
 
+// Progress milestones
+#define PROGRESS_START 0.1
+#define PROGRESS_LOGIN 0.3
+#define PROGRESS_PROCESSING 0.5
+#define PROGRESS_COMPLETE 1.0
+
 // Thread data for background download
 typedef struct {
     AppState *app;
@@ -86,7 +92,9 @@ static gboolean idle_update_status(gpointer data) {
 static gboolean idle_update_progress(gpointer data) {
     ProgressUpdateData *update_data = (ProgressUpdateData *)data;
     update_progress(update_data->app, update_data->fraction, update_data->text);
-    g_free(update_data->text);
+    if (update_data->text) {
+        g_free(update_data->text);
+    }
     g_free(update_data);
     return G_SOURCE_REMOVE;
 }
@@ -113,7 +121,7 @@ static void* download_thread_func(void *data) {
     AppState *app = thread_data->app;
     
     schedule_status_update(app, "Logging in...");
-    schedule_progress_update(app, 0.1, "Fetching login page...");
+    schedule_progress_update(app, PROGRESS_START, "Fetching login page...");
     
     char errbuf[CURL_ERROR_SIZE] = {0};
     curl_easy_setopt(app->curl, CURLOPT_ERRORBUFFER, errbuf);
@@ -162,7 +170,7 @@ static void* download_thread_func(void *data) {
     }
     
     append_log(app, "Login token extracted successfully");
-    schedule_progress_update(app, 0.3, "Logging in...");
+    schedule_progress_update(app, PROGRESS_LOGIN, "Logging in...");
     
     // Perform login
     char *escaped_username = curl_easy_escape(app->curl, thread_data->username, 0);
@@ -210,7 +218,7 @@ static void* download_thread_func(void *data) {
     
     append_log(app, "Login successful!");
     schedule_status_update(app, "Extracting courses...");
-    schedule_progress_update(app, 0.5, "Processing courses...");
+    schedule_progress_update(app, PROGRESS_PROCESSING, "Processing courses...");
     append_log(app, "Extracting and processing courses...");
     
     // Process courses
@@ -220,7 +228,7 @@ static void* download_thread_func(void *data) {
     
     append_log(app, "Download complete!");
     schedule_status_update(app, "Download complete!");
-    schedule_progress_update(app, 1.0, "Completed");
+    schedule_progress_update(app, PROGRESS_COMPLETE, "Completed");
     
     app->is_downloading = 0;
     free(thread_data);
@@ -257,7 +265,7 @@ static void on_login_clicked(GtkButton *button, gpointer user_data) {
     // Start download in background thread
     app->is_downloading = 1;
     update_status(app, "Logging in...");
-    update_progress(app, 0.5, "Processing...");
+    update_progress(app, PROGRESS_START, "Processing...");
     
     DownloadThreadData *thread_data = g_malloc(sizeof(DownloadThreadData));
     thread_data->app = app;
