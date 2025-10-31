@@ -85,7 +85,7 @@ int save_credentials(const char *username, const char *password, char key) {
     free(enc_user);
     free(enc_pass);
     fclose(fp);
-    printf("Credentials saved to %s (encrypted - basic XOR, not secure!).\n", CRED_FILE);
+    // Credentials saved - silent operation for cleaner output
     return 1;
 }
 
@@ -123,32 +123,30 @@ int load_credentials(char *username, size_t user_size, char *password, size_t pa
         fprintf(stderr, "DEBUG: Warning: Loaded credentials might be truncated.\n");
     }
 
-    printf("Credentials loaded from %s.\n", CRED_FILE);
+    // Credentials loaded - silent operation for cleaner output
     return 1;
 }
 
 // Extract login token from HTML form
 char *extract_logintoken(const char *html) {
     if (!html) {
-        fprintf(stderr, "DEBUG: extract_logintoken called with NULL html\n");
         return NULL;
     }
     const char *pattern = "name=\"logintoken\" value=\"";
     const char *start = strstr(html, pattern);
     if (!start) {
-        fprintf(stderr, "DEBUG: logintoken pattern not found in HTML.\n");
+        // Token not found - silent return for cleaner output
         return NULL;
     }
     start += strlen(pattern);
     const char *end = strchr(start, '"');
     if (!end) {
-        fprintf(stderr, "DEBUG: Closing quote for logintoken not found.\n");
+        // Closing quote not found - silent return
         return NULL;
     }
     size_t len = end - start;
     char *token = malloc(len + 1);
     if (!token) {
-        perror("DEBUG: malloc failed for logintoken");
         return NULL;
     }
     strncpy(token, start, len);

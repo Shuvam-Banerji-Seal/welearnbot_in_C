@@ -55,8 +55,13 @@ static void update_progress(AppState *app, double fraction, const char *text);
 // Append text to log view
 static void append_log(AppState *app, const char *message) {
     GtkTextIter iter;
+    
+    // Insert the message
     gtk_text_buffer_get_end_iter(app->log_buffer, &iter);
     gtk_text_buffer_insert(app->log_buffer, &iter, message, -1);
+    
+    // Get a fresh iterator for the newline (previous iterator is invalidated)
+    gtk_text_buffer_get_end_iter(app->log_buffer, &iter);
     gtk_text_buffer_insert(app->log_buffer, &iter, "\n", -1);
     
     // Auto-scroll to bottom
