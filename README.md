@@ -1,84 +1,311 @@
-
 # WeLearn Downloader
 
-This C program automates the downloading of resources from the WeLearn platform. It handles login, navigates through course pages, and downloads files.
+A modern C application for automating resource downloads from the WeLearn platform. Available in both command-line (CLI) and graphical (GTK4 GUI) versions.
 
-**Warning:** This tool uses a simple XOR encryption for storing credentials, which is **NOT SECURE**. Do not use it with sensitive accounts.
-
-## Table of Contents
-
-* [Features](#features)
-* [Dependencies](#dependencies)
-* [Installation](#installation)
-* [Configuration](#configuration)
-* [Usage](#usage)
-* [Compilation](#compilation)
-* [Limitations](#limitations)
-* [Disclaimer](#disclaimer)
+**Warning:** This tool uses simple XOR encryption for storing credentials, which is **NOT SECURE**. Do not use it with sensitive accounts.
 
 ## Features
 
-* Logs into the WeLearn platform.
-* Navigates course pages.
-* Extracts file download links.
-* Downloads files, handling filename extraction from headers and URLs.
-* Saves and loads credentials (using weak encryption).
-* Creates directories for courses.
-* Tracks visited URLs to avoid redundant processing.
+* **GUI Version** - Modern GTK4 graphical interface with:
+  - User-friendly login form
+  - Real-time download progress
+  - Activity log viewer
+  - Credential management
+* **CLI Version** - Traditional command-line interface
+* Automated login and session management
+* Course navigation and resource extraction
+* Smart file naming and organization
+* Duplicate detection
+* Folder recursion support
+* Credential storage (basic encryption)
+
+## Project Structure
+
+```
+welearnbot_in_C/
+├── include/              # Header files
+│   ├── welearn_common.h  # Common structures and utilities
+│   ├── welearn_auth.h    # Authentication functions
+│   └── welearn_download.h # Download logic
+├── src/                  # Source files
+│   ├── welearn_common.c  # Common utilities implementation
+│   ├── welearn_auth.c    # Authentication implementation
+│   ├── welearn_download.c # Download implementation
+│   ├── welearn_cli.c     # CLI application
+│   └── welearn_gui.c     # GTK4 GUI application
+├── build/                # Build artifacts (created during build)
+├── docs/                 # Documentation
+├── Makefile             # Build system
+└── README.md            # This file
+```
 
 ## Dependencies
 
-* **libcurl:** A library for making HTTP requests.  You'll need both the library and the header files.
-* **zlib:** A library for data compression.
-* **OpenSSL:** A cryptography library.
+### Required (for CLI version)
+* **libcurl** - HTTP client library
+  - Ubuntu/Debian: `sudo apt-get install libcurl4-openssl-dev`
+  - Fedora/CentOS/RHEL: `sudo dnf install curl-devel`
+* **zlib** - Compression library
+  - Ubuntu/Debian: `sudo apt-get install zlib1g-dev`
+  - Fedora/CentOS/RHEL: `sudo dnf install zlib-devel`
+* **OpenSSL** - Cryptography library
+  - Ubuntu/Debian: `sudo apt-get install libssl-dev`
+  - Fedora/CentOS/RHEL: `sudo dnf install openssl-devel`
+
+### Optional (for GUI version)
+* **GTK4** - GUI toolkit (version 4.x)
+  - Ubuntu/Debian: `sudo apt-get install libgtk-4-dev`
+  - Fedora/CentOS/RHEL: `sudo dnf install gtk4-devel`
 
 ## Installation
 
-1.  **Install libcurl:**
-    * **Ubuntu/Debian:** `sudo apt-get install libcurl4-openssl-dev`
-    * **Fedora/CentOS/RHEL:** `sudo dnf install curl-devel`
-    * **Windows:** Download a pre-built binary from the official libcurl website and set up the include paths and library linking in your compiler.
-2.  **Install zlib:**
-    * **Ubuntu/Debian:** `sudo apt-get install zlib1g-dev`
-    * **Fedora/CentOS/RHEL:** `sudo dnf install zlib-devel`
-    * **Windows:** You might need to download and compile zlib, or find a pre-built binary.
-3.  **Install OpenSSL:**
-    * **Ubuntu/Debian:** `sudo apt-get install libssl-dev`
-    * **Fedora/CentOS/RHEL:** `sudo dnf install openssl-devel`
-    * **Windows:** Download and install OpenSSL. You'll need to configure your compiler's include and lib paths.
+### Quick Install (Ubuntu/Debian)
 
-## Configuration
+```bash
+# Install all dependencies (including GUI)
+sudo apt-get update
+sudo apt-get install libcurl4-openssl-dev zlib1g-dev libssl-dev libgtk-4-dev
 
-* The program saves credentials in a file named `credentials.dat`.
-* The encryption key used for this file is defined as `ENCRYPTION_KEY 'S'`.  **DO NOT CHANGE THIS (or at least change it back before committing), AND BE AWARE THIS IS NOT SECURE!**
+# Build both versions
+make
+
+# Or install system-wide
+make install
+```
+
+### Build Options
+
+```bash
+# Build both CLI and GUI (if GTK4 available)
+make
+
+# Build only CLI version
+make cli
+
+# Build only GUI version
+make gui
+
+# Clean and rebuild
+make clean all
+
+# Show all available targets
+make help
+```
 
 ## Usage
 
-1.  **Compile** the code (see [Compilation](#compilation)).
-2.  **Run** the executable.
-3.  The program will prompt you for your WeLearn username and password.
-4.  It will then attempt to log in and download resources.
-5.  Downloaded files will be saved in directories corresponding to the course names.
+### GUI Version
 
-
-## Compilation
+Simply run the graphical application:
 
 ```bash
-gcc -o welearn_downloader welearn_downloader.c -lcurl
+./welearn_gui
 ```
 
-## Windows:
+The GUI provides:
+1. **Login Form** - Enter your WeLearn credentials
+2. **Save Credentials** - Option to save credentials for future use
+3. **Download Button** - Start downloading all courses
+4. **Progress Bar** - Visual feedback on download progress
+5. **Activity Log** - Real-time log of all operations
 
-You'll likely need to add compiler flags to specify the location of the libcurl, zlib, and OpenSSL header files and libraries.  This usually involves the `-I` flag for include directories and the `-L` flag for library directories, along with `-l` to link to specific libraries (e.g., `-lcurl`, `-lzlib`, `-lssl`, `-lcrypto`).  Consult your compiler's documentation (e.g., MinGW, Visual Studio) for details.
+### CLI Version
+
+Run the command-line application:
+
+```bash
+./welearn_cli
+```
+
+The CLI will:
+1. Prompt for credentials (or load saved ones)
+2. Log into WeLearn
+3. Discover all enrolled courses
+4. Download resources from each course
+5. Organize files into course-specific directories
+
+## Configuration
+
+### Credential Storage
+
+* Credentials are saved to `credentials.dat` (encrypted with XOR)
+* The encryption key is defined as `ENCRYPTION_KEY 'S'`
+* **Important**: This is NOT secure encryption - use at your own risk
+
+### Download Location
+
+* Files are downloaded to the current directory
+* Each course gets its own folder (named after the course title)
+* Existing files are automatically skipped
+
+## Building from Source
+
+### Prerequisites
+
+Ensure you have:
+* GCC compiler (or compatible C compiler)
+* Make build system
+* Development libraries installed (see Dependencies)
+
+### Compilation
+
+The Makefile automatically detects available libraries:
+
+```bash
+# Standard build
+make
+
+# Verbose build (shows compilation commands)
+make VERBOSE=1
+
+# Build with debug symbols
+make CFLAGS="-Wall -Wextra -g -Iinclude"
+```
+
+### Cross-Platform Notes
+
+#### Linux
+The default target platform. All features fully supported.
+
+#### Windows
+You'll need to:
+1. Install MinGW or similar compiler
+2. Install libcurl, zlib, OpenSSL for Windows
+3. Adjust include and library paths in the Makefile
+4. Use `mingw32-make` instead of `make`
+
+#### macOS
+Install dependencies via Homebrew:
+```bash
+brew install curl openssl gtk4
+```
+
+## Architecture
+
+The application is modularized into several components:
+
+### Core Modules
+
+1. **welearn_common** - Shared utilities
+   - Memory management for HTTP responses
+   - URL visited tracking
+   - File/path sanitization
+   - Directory creation
+
+2. **welearn_auth** - Authentication
+   - Login token extraction
+   - Credential encryption/decryption
+   - Secure password input
+   - Credential persistence
+
+3. **welearn_download** - Download logic
+   - File downloading with resume support
+   - Course page parsing
+   - Folder recursion
+   - Smart filename detection
+
+4. **welearn_cli** - CLI interface
+   - Command-line user interaction
+   - Terminal output formatting
+
+5. **welearn_gui** - GTK4 GUI
+   - Modern graphical interface
+   - Multi-threaded downloads
+   - Progress indication
+   - Log viewer
 
 ## Limitations
 
-* **Security:** The credential saving is extremely insecure.  Do not use this with sensitive accounts.
-* **Error Handling:** While there is some error handling, it might not be robust enough for all situations.
-* **Website Changes:** If the WeLearn website's structure changes, the program may break.
-* **No GUI:** This is a command-line tool.
-* **Rate Limiting:** The script does not implement any delay and can be detected as a bot and get your IP banned. Add some delay.
+* **Security**: Credential storage uses weak XOR encryption
+* **Website Changes**: May break if WeLearn's HTML structure changes
+* **Rate Limiting**: No delay between requests (could trigger anti-bot measures)
+* **Error Recovery**: Limited handling of network interruptions
+* **Platform Support**: GUI requires GTK4 (Linux primarily)
+
+## Troubleshooting
+
+### Build Issues
+
+**Problem**: `Package gtk4 was not found`
+```bash
+# Solution: Install GTK4 development libraries
+sudo apt-get install libgtk-4-dev
+```
+
+**Problem**: `curl/curl.h: No such file or directory`
+```bash
+# Solution: Install libcurl development files
+sudo apt-get install libcurl4-openssl-dev
+```
+
+### Runtime Issues
+
+**Problem**: "Failed to initialize libcurl"
+```bash
+# Ensure libcurl is installed
+sudo apt-get install libcurl4
+```
+
+**Problem**: GUI doesn't start
+```bash
+# Check GTK4 runtime is installed
+sudo apt-get install libgtk-4-1
+
+# Run with debug info
+GTK_DEBUG=interactive ./welearn_gui
+```
+
+**Problem**: Login fails
+- Verify your credentials are correct
+- Check if WeLearn website is accessible
+- Ensure cookies.txt can be created in the current directory
+
+## Development
+
+### Code Style
+- Follow Linux kernel coding style
+- Use 4 spaces for indentation
+- Comment complex logic
+- Keep functions focused and modular
+
+### Adding Features
+1. Add new headers to `include/` if needed
+2. Implement in appropriate `src/` file
+3. Update Makefile if adding new files
+4. Update README with new features
+
+### Testing
+```bash
+# Build with debug symbols
+make clean
+make CFLAGS="-Wall -Wextra -g -Iinclude"
+
+# Run with valgrind (memory leak detection)
+valgrind --leak-check=full ./welearn_cli
+
+# Run with gdb (debugging)
+gdb ./welearn_cli
+```
+
+## Contributing
+
+Contributions are welcome! Please:
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Test thoroughly
+5. Submit a pull request
+
+## License
+
+This project is provided as-is for educational purposes. Use responsibly and ethically.
 
 ## Disclaimer
 
-This program is provided as-is. Use it at your own risk. The author is not responsible for any damages or issues arising from its use.  Use this tool responsibly and ethically, respecting the terms of service of the WeLearn platform.
+This program is provided as-is without any warranty. The author is not responsible for any damages, data loss, or issues arising from its use. Use this tool responsibly and ethically, respecting the terms of service of the WeLearn platform.
+
+## Acknowledgments
+
+* Built with GTK4 for the GUI
+* Uses libcurl for HTTP operations
+* Inspired by the need for efficient course material management
