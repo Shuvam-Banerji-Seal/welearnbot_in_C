@@ -1,6 +1,64 @@
 #include "../include/welearn_common.h"
 #include "../include/welearn_auth.h"
 #include "../include/welearn_download.h"
+#include <ctype.h>
+
+// Helper function to get user input for download directory
+void get_download_directory(char *path, size_t size) {
+    printf("\nEnter download directory path (press Enter for current directory '.'): ");
+    fflush(stdout);
+    
+    if (fgets(path, size, stdin) == NULL) {
+        strcpy(path, ".");
+        return;
+    }
+    
+    // Remove trailing newline
+    path[strcspn(path, "\n")] = 0;
+    
+    // If empty, use current directory
+    if (strlen(path) == 0) {
+        strcpy(path, ".");
+    }
+}
+
+// Helper function to parse comma-separated file selections
+int parse_selections(const char *input, int **selections, size_t max_files) {
+    if (!input || !selections) return 0;
+    
+    // Count commas to estimate size
+    int count = 1;
+    for (const char *p = input; *p; p++) {
+        if (*p == ',') count++;
+    }
+    
+    *selections = malloc(count * sizeof(int));
+    if (!*selections) return 0;
+    
+    int idx = 0;
+    char buffer[32];
+    int buf_idx = 0;
+    
+    for (const char *p = input; ; p++) {
+        if (*p == ',' || *p == '\0' || *p == '\n') {
+            if (buf_idx > 0) {
+                buffer[buf_idx] = '\0';
+                int num = atoi(buffer);
+                if (num > 0 && (size_t)num <= max_files) {
+                    (*selections)[idx++] = num;
+                }
+                buf_idx = 0;
+            }
+            if (*p == '\0' || *p == '\n') break;
+        } else if (isdigit((unsigned char)*p) || *p == ' ') {
+            if (*p != ' ' && buf_idx < (int)sizeof(buffer) - 1) {
+                buffer[buf_idx++] = *p;
+            }
+        }
+    }
+    
+    return idx;
+}
 
 int main(void) {
     CURL *curl;
@@ -145,7 +203,124 @@ int main(void) {
 
     printf("Login successful!\n");
 
-    extract_course_links_and_process(curl, login_page_content.memory);
+    // NEW INTERACTIVE MODE
+    printf("\n===========================================\n");
+    printf("  WeLearn File Download Manager\n");
+    printf("===========================================\n");
+    printf("\nChoose an option:\n");
+    printf("1. Download all files (old behavior)\n");
+    printf("2. Select specific files to download (new)\n");
+    printf("\nEnter choice (1 or 2): ");
+    fflush(stdout);
+    
+    char choice[10];
+    if (fgets(choice, sizeof(choice), stdin) == NULL) {
+        choice[0] = '1';  // Default to old behavior
+    }
+    
+    if (choice[0] == '2') {
+        // NEW MODE: Scan and collect files
+        struct FileList file_list;
+        init_file_list(&file_list);
+        
+        printf("\nScanning courses and collecting file information...\n");
+        scan_courses_and_collect_files(curl, login_page_content.memory, &file_list);
+        
+        if (file_list.count == 0) {
+            printf("No files found.\n");
+            free_file_list(&file_list);
+            free(login_page_content.memory);
+            goto cleanup;
+        }
+        
+        // Display files
+        printf("\nHow would you like to view the files?\n");
+        printf("1. Tree view (hierarchical)\n");
+        printf("2. List view (simple table)\n");
+        printf("\nEnter choice (1 or 2): ");
+        fflush(stdout);
+        
+        char view_choice[10];
+        if (fgets(view_choice, sizeof(view_choice), stdin) == NULL) {
+            view_choice[0] = '1';
+        }
+        
+        if (view_choice[0] == '2') {
+            display_file_list(&file_list);
+        } else {
+            display_file_tree(&file_list);
+        }
+        
+        // Get download directory
+        char download_path[MAX_PATH_LEN];
+        get_download_directory(download_path, sizeof(download_path));
+        
+        // Create download directory if it doesn't exist
+        if (!create_directory(download_path)) {
+            fprintf(stderr, "Failed to create download directory: %s\n", download_path);
+            free_file_list(&file_list);
+            free(login_page_content.memory);
+            goto cleanup;
+        }
+        
+        // Select files to download
+        printf("\nSelect files to download:\n");
+        printf("  - Enter 'all' to download all files\n");
+        printf("  - Enter file numbers separated by commas (e.g., 1,3,5,7)\n");
+        printf("  - Enter 'q' to quit without downloading\n");
+        printf("\nYour selection: ");
+        fflush(stdout);
+        
+        char selection_input[1024];
+        if (fgets(selection_input, sizeof(selection_input), stdin) == NULL) {
+            printf("No selection made.\n");
+            free_file_list(&file_list);
+            free(login_page_content.memory);
+            goto cleanup;
+        }
+        
+        // Remove trailing newline
+        selection_input[strcspn(selection_input, "\n")] = 0;
+        
+        if (selection_input[0] == 'q' || selection_input[0] == 'Q') {
+            printf("Quitting without downloading.\n");
+            free_file_list(&file_list);
+            free(login_page_content.memory);
+            goto cleanup;
+        }
+        
+        int *selections = NULL;
+        size_t selection_count = 0;
+        
+        if (strcmp(selection_input, "all") == 0 || strcmp(selection_input, "ALL") == 0) {
+            // Download all files
+            selection_count = file_list.count;
+            selections = malloc(selection_count * sizeof(int));
+            if (selections) {
+                for (size_t i = 0; i < selection_count; i++) {
+                    selections[i] = (int)(i + 1);
+                }
+            }
+        } else {
+            // Parse specific selections
+            selection_count = parse_selections(selection_input, &selections, file_list.count);
+        }
+        
+        if (selection_count > 0 && selections) {
+            printf("\nPreparing to download %zu file(s)...\n", selection_count);
+            download_selected_files(curl, &file_list, selections, selection_count, download_path);
+            free(selections);
+        } else {
+            printf("No valid selections made.\n");
+        }
+        
+        free_file_list(&file_list);
+        
+    } else {
+        // OLD MODE: Download everything immediately
+        printf("\nDownloading all files to current directory...\n");
+        extract_course_links_and_process(curl, login_page_content.memory);
+    }
 
     free(login_page_content.memory);
 

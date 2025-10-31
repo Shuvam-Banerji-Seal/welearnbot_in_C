@@ -253,3 +253,125 @@ int create_directory(const char *path) {
     }
     return 1;
 }
+
+// Initialize file list
+void init_file_list(struct FileList *list) {
+    if (!list) return;
+    list->files = malloc(INITIAL_FILE_LIST_CAPACITY * sizeof(struct FileInfo));
+    if (!list->files) {
+        perror("Failed to allocate file list");
+        exit(EXIT_FAILURE);
+    }
+    list->count = 0;
+    list->capacity = INITIAL_FILE_LIST_CAPACITY;
+}
+
+// Add a file to the list
+int add_file_to_list(struct FileList *list, const char *filename, const char *url, 
+                     const char *course_name, const char *suggested_name, int is_folder, int depth) {
+    if (!list || !filename || !url || !course_name) return 0;
+    
+    // Resize if necessary
+    if (list->count >= list->capacity) {
+        size_t new_capacity = list->capacity * 2;
+        struct FileInfo *new_files = realloc(list->files, new_capacity * sizeof(struct FileInfo));
+        if (!new_files) {
+            perror("Failed to reallocate file list");
+            return 0;
+        }
+        list->files = new_files;
+        list->capacity = new_capacity;
+    }
+    
+    // Add the file
+    struct FileInfo *file = &list->files[list->count];
+    strncpy(file->filename, filename, MAX_FILENAME_LEN - 1);
+    file->filename[MAX_FILENAME_LEN - 1] = '\0';
+    
+    strncpy(file->url, url, MAX_URL_LEN - 1);
+    file->url[MAX_URL_LEN - 1] = '\0';
+    
+    strncpy(file->course_name, course_name, MAX_FILENAME_LEN - 1);
+    file->course_name[MAX_FILENAME_LEN - 1] = '\0';
+    
+    if (suggested_name) {
+        strncpy(file->suggested_name, suggested_name, MAX_FILENAME_LEN - 1);
+        file->suggested_name[MAX_FILENAME_LEN - 1] = '\0';
+    } else {
+        file->suggested_name[0] = '\0';
+    }
+    
+    file->is_folder = is_folder;
+    file->depth = depth;
+    list->count++;
+    
+    return 1;
+}
+
+// Free file list
+void free_file_list(struct FileList *list) {
+    if (list && list->files) {
+        free(list->files);
+        list->files = NULL;
+        list->count = 0;
+        list->capacity = 0;
+    }
+}
+
+// Display files in tree format
+void display_file_tree(const struct FileList *list) {
+    if (!list || list->count == 0) {
+        printf("No files found.\n");
+        return;
+    }
+    
+    printf("\n========================================\n");
+    printf("Files Available for Download (Tree View)\n");
+    printf("========================================\n");
+    
+    const char *current_course = "";
+    for (size_t i = 0; i < list->count; i++) {
+        const struct FileInfo *file = &list->files[i];
+        
+        // Print course header if it changes
+        if (strcmp(current_course, file->course_name) != 0) {
+            current_course = file->course_name;
+            printf("\n📚 Course: %s\n", current_course);
+        }
+        
+        // Print indentation based on depth
+        for (int j = 0; j < file->depth; j++) {
+            printf("  ");
+        }
+        
+        // Print file/folder icon and name
+        if (file->is_folder) {
+            printf("📁 [%zu] %s (folder)\n", i + 1, file->filename);
+        } else {
+            printf("📄 [%zu] %s\n", i + 1, file->filename);
+        }
+    }
+    printf("\n========================================\n");
+}
+
+// Display files in simple list format
+void display_file_list(const struct FileList *list) {
+    if (!list || list->count == 0) {
+        printf("No files found.\n");
+        return;
+    }
+    
+    printf("\n========================================\n");
+    printf("Files Available for Download (List View)\n");
+    printf("========================================\n");
+    printf("%-5s %-30s %-40s\n", "No.", "Course", "Filename");
+    printf("----------------------------------------\n");
+    
+    for (size_t i = 0; i < list->count; i++) {
+        const struct FileInfo *file = &list->files[i];
+        const char *type = file->is_folder ? " (folder)" : "";
+        printf("[%-3zu] %-30.30s %-40.40s%s\n", i + 1, file->course_name, file->filename, type);
+    }
+    printf("========================================\n");
+    printf("Total: %zu file(s)\n", list->count);
+}
