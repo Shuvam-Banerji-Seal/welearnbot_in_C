@@ -1,0 +1,32 @@
+# Build artifacts
+*.o
+*.so
+*.a
+welearn_cli
+welearn_gui
+welearn_downloader
+
+# Build directory
+build/
+
+# Credentials and cookies
+credentials.dat
+cookies.txt
+
+# Downloaded course directories (but not docs/)
+course_*/
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
