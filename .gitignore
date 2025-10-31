@@ -30,3 +30,6 @@ Thumbs.db
 # Backup files
 *.bak
 *.backup
+
+# CodeQL
+_codeql_detected_source_root

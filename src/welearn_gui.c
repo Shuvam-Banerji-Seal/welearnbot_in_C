@@ -22,6 +22,12 @@ typedef struct {
     pthread_t download_thread;
 } AppState;
 
+// Progress milestones
+#define PROGRESS_START 0.1
+#define PROGRESS_LOGIN 0.3
+#define PROGRESS_PROCESSING 0.5
+#define PROGRESS_COMPLETE 1.0
+
 // Thread data for background download
 typedef struct {
     AppState *app;
@@ -29,24 +35,22 @@ typedef struct {
     char password[128];
 } DownloadThreadData;
 
+// Data structures for idle callbacks
+typedef struct {
+    AppState *app;
+    char *message;
+} StatusUpdateData;
+
+typedef struct {
+    AppState *app;
+    double fraction;
+    char *text;
+} ProgressUpdateData;
+
 // Forward declarations
 static void append_log(AppState *app, const char *message);
 static void update_status(AppState *app, const char *status);
 static void update_progress(AppState *app, double fraction, const char *text);
-
-// Custom logging function
-static void log_message(AppState *app, const char *format, ...) {
-    char buffer[1024];
-    va_list args;
-    va_start(args, format);
-    vsnprintf(buffer, sizeof(buffer), format, args);
-    va_end(args);
-    
-    // Use g_idle_add to update UI from any thread
-    char *msg = g_strdup(buffer);
-    g_idle_add((GSourceFunc)g_free, msg);
-    append_log(app, buffer);
-}
 
 // Append text to log view
 static void append_log(AppState *app, const char *message) {
@@ -76,13 +80,48 @@ static void update_progress(AppState *app, double fraction, const char *text) {
     }
 }
 
+// Idle callback wrappers for thread-safe UI updates
+static gboolean idle_update_status(gpointer data) {
+    StatusUpdateData *update_data = (StatusUpdateData *)data;
+    update_status(update_data->app, update_data->message);
+    g_free(update_data->message);
+    g_free(update_data);
+    return G_SOURCE_REMOVE;
+}
+
+static gboolean idle_update_progress(gpointer data) {
+    ProgressUpdateData *update_data = (ProgressUpdateData *)data;
+    update_progress(update_data->app, update_data->fraction, update_data->text);
+    if (update_data->text) {
+        g_free(update_data->text);
+    }
+    g_free(update_data);
+    return G_SOURCE_REMOVE;
+}
+
+// Helper functions to schedule UI updates from background thread
+static void schedule_status_update(AppState *app, const char *status) {
+    StatusUpdateData *data = g_malloc(sizeof(StatusUpdateData));
+    data->app = app;
+    data->message = g_strdup(status);
+    g_idle_add(idle_update_status, data);
+}
+
+static void schedule_progress_update(AppState *app, double fraction, const char *text) {
+    ProgressUpdateData *data = g_malloc(sizeof(ProgressUpdateData));
+    data->app = app;
+    data->fraction = fraction;
+    data->text = text ? g_strdup(text) : NULL;
+    g_idle_add(idle_update_progress, data);
+}
+
 // Download thread function
 static void* download_thread_func(void *data) {
     DownloadThreadData *thread_data = (DownloadThreadData *)data;
     AppState *app = thread_data->app;
     
-    g_idle_add((GSourceFunc)update_status, app);
-    g_idle_add_full(G_PRIORITY_DEFAULT_IDLE, (GSourceFunc)update_progress, app, NULL);
+    schedule_status_update(app, "Logging in...");
+    schedule_progress_update(app, PROGRESS_START, "Fetching login page...");
     
     char errbuf[CURL_ERROR_SIZE] = {0};
     curl_easy_setopt(app->curl, CURLOPT_ERRORBUFFER, errbuf);
@@ -103,7 +142,7 @@ static void* download_thread_func(void *data) {
     if (res != CURLE_OK) {
         append_log(app, "Failed to fetch login page");
         free(login_page_content.memory);
-        g_idle_add((GSourceFunc)update_status, app);
+        schedule_status_update(app, "Error: Failed to fetch login page");
         app->is_downloading = 0;
         free(thread_data);
         return NULL;
@@ -114,7 +153,7 @@ static void* download_thread_func(void *data) {
     if (http_code >= 400) {
         append_log(app, "HTTP error fetching login page");
         free(login_page_content.memory);
-        g_idle_add((GSourceFunc)update_status, app);
+        schedule_status_update(app, "Error: HTTP error fetching login page");
         app->is_downloading = 0;
         free(thread_data);
         return NULL;
@@ -124,13 +163,14 @@ static void* download_thread_func(void *data) {
     if (!logintoken) {
         append_log(app, "Failed to extract login token");
         free(login_page_content.memory);
-        g_idle_add((GSourceFunc)update_status, app);
+        schedule_status_update(app, "Error: Failed to extract login token");
         app->is_downloading = 0;
         free(thread_data);
         return NULL;
     }
     
     append_log(app, "Login token extracted successfully");
+    schedule_progress_update(app, PROGRESS_LOGIN, "Logging in...");
     
     // Perform login
     char *escaped_username = curl_easy_escape(app->curl, thread_data->username, 0);
@@ -160,7 +200,7 @@ static void* download_thread_func(void *data) {
     if (res != CURLE_OK) {
         append_log(app, "Login request failed");
         free(login_page_content.memory);
-        g_idle_add((GSourceFunc)update_status, app);
+        schedule_status_update(app, "Error: Login request failed");
         app->is_downloading = 0;
         free(thread_data);
         return NULL;
@@ -170,13 +210,15 @@ static void* download_thread_func(void *data) {
         strstr(login_page_content.memory, "loginerrors")) {
         append_log(app, "Login failed! Invalid credentials");
         free(login_page_content.memory);
-        g_idle_add((GSourceFunc)update_status, app);
+        schedule_status_update(app, "Error: Invalid credentials");
         app->is_downloading = 0;
         free(thread_data);
         return NULL;
     }
     
     append_log(app, "Login successful!");
+    schedule_status_update(app, "Extracting courses...");
+    schedule_progress_update(app, PROGRESS_PROCESSING, "Processing courses...");
     append_log(app, "Extracting and processing courses...");
     
     // Process courses
@@ -185,8 +227,8 @@ static void* download_thread_func(void *data) {
     free(login_page_content.memory);
     
     append_log(app, "Download complete!");
-    g_idle_add((GSourceFunc)update_status, app);
-    g_idle_add_full(G_PRIORITY_DEFAULT_IDLE, (GSourceFunc)update_progress, app, NULL);
+    schedule_status_update(app, "Download complete!");
+    schedule_progress_update(app, PROGRESS_COMPLETE, "Completed");
     
     app->is_downloading = 0;
     free(thread_data);
@@ -223,7 +265,7 @@ static void on_login_clicked(GtkButton *button, gpointer user_data) {
     // Start download in background thread
     app->is_downloading = 1;
     update_status(app, "Logging in...");
-    update_progress(app, 0.5, "Processing...");
+    update_progress(app, PROGRESS_START, "Processing...");
     
     DownloadThreadData *thread_data = g_malloc(sizeof(DownloadThreadData));
     thread_data->app = app;
