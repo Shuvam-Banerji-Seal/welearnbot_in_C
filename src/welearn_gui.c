@@ -56,13 +56,13 @@ static void update_progress(AppState *app, double fraction, const char *text);
 static void append_log(AppState *app, const char *message) {
     GtkTextIter iter;
     
-    // Insert the message
-    gtk_text_buffer_get_end_iter(app->log_buffer, &iter);
-    gtk_text_buffer_insert(app->log_buffer, &iter, message, -1);
+    // Create message with newline to avoid iterator invalidation issues
+    char *msg_with_newline = g_strdup_printf("%s\n", message);
     
-    // Get a fresh iterator for the newline (previous iterator is invalidated)
     gtk_text_buffer_get_end_iter(app->log_buffer, &iter);
-    gtk_text_buffer_insert(app->log_buffer, &iter, "\n", -1);
+    gtk_text_buffer_insert(app->log_buffer, &iter, msg_with_newline, -1);
+    
+    g_free(msg_with_newline);
     
     // Auto-scroll to bottom
     GtkTextMark *mark = gtk_text_buffer_get_insert(app->log_buffer);
