@@ -3,6 +3,7 @@
 #include "../include/welearn_auth.h"
 #include "../include/welearn_download.h"
 #include <pthread.h>
+#include <unistd.h>  // For chdir, getcwd
 
 // Application state
 typedef struct {
@@ -10,6 +11,8 @@ typedef struct {
     GtkWidget *username_entry;
     GtkWidget *password_entry;
     GtkWidget *save_creds_check;
+    GtkWidget *folder_button;
+    GtkWidget *folder_label;
     GtkWidget *login_button;
     GtkWidget *status_label;
     GtkWidget *progress_bar;
@@ -18,6 +21,7 @@ typedef struct {
     CURL *curl;
     char username[128];
     char password[128];
+    char download_path[MAX_PATH_LEN];
     int is_downloading;
     pthread_t download_thread;
 } AppState;
@@ -51,6 +55,7 @@ typedef struct {
 static void append_log(AppState *app, const char *message);
 static void update_status(AppState *app, const char *status);
 static void update_progress(AppState *app, double fraction, const char *text);
+static void on_folder_selected(GObject *source, GAsyncResult *result, gpointer user_data);
 
 // Append text to log view
 static void append_log(AppState *app, const char *message) {
@@ -226,8 +231,35 @@ static void* download_thread_func(void *data) {
     schedule_progress_update(app, PROGRESS_PROCESSING, "Processing courses...");
     append_log(app, "Extracting and processing courses...");
     
+    // Change to download directory
+    char original_dir[MAX_PATH_LEN];
+    if (getcwd(original_dir, sizeof(original_dir)) == NULL) {
+        append_log(app, "Warning: Could not get current directory");
+    }
+    
+    if (strlen(app->download_path) > 0 && strcmp(app->download_path, ".") != 0) {
+        if (chdir(app->download_path) != 0) {
+            char err_msg[MAX_PATH_LEN + 50];
+            snprintf(err_msg, sizeof(err_msg), "Error: Could not change to download folder: %s", app->download_path);
+            append_log(app, err_msg);
+            schedule_status_update(app, "Error: Invalid download folder");
+            app->is_downloading = 0;
+            free(login_page_content.memory);
+            free(thread_data);
+            return NULL;
+        }
+        char log_msg[MAX_PATH_LEN + 50];
+        snprintf(log_msg, sizeof(log_msg), "Downloading to: %s", app->download_path);
+        append_log(app, log_msg);
+    }
+    
     // Process courses
     extract_course_links_and_process(app->curl, login_page_content.memory);
+    
+    // Restore original directory
+    if (strlen(original_dir) > 0 && chdir(original_dir) != 0) {
+        append_log(app, "Warning: Could not restore original directory");
+    }
     
     free(login_page_content.memory);
     
@@ -238,6 +270,56 @@ static void* download_thread_func(void *data) {
     app->is_downloading = 0;
     free(thread_data);
     return NULL;
+}
+
+// Folder chooser button clicked
+static void on_folder_chooser_clicked(GtkButton *button, gpointer user_data) {
+    (void)button;  // Unused
+    AppState *app = (AppState *)user_data;
+    
+    GtkFileDialog *dialog = gtk_file_dialog_new();
+    gtk_file_dialog_set_title(dialog, "Select Download Folder");
+    
+    gtk_file_dialog_select_folder(dialog,
+                                   GTK_WINDOW(app->window),
+                                   NULL,  // cancellable
+                                   (GAsyncReadyCallback)on_folder_selected,
+                                   app);
+}
+
+// Callback when folder is selected
+static void on_folder_selected(GObject *source, GAsyncResult *result, gpointer user_data) {
+    AppState *app = (AppState *)user_data;
+    GtkFileDialog *dialog = GTK_FILE_DIALOG(source);
+    
+    GError *error = NULL;
+    GFile *file = gtk_file_dialog_select_folder_finish(dialog, result, &error);
+    
+    if (file) {
+        char *path = g_file_get_path(file);
+        if (path) {
+            strncpy(app->download_path, path, sizeof(app->download_path) - 1);
+            app->download_path[sizeof(app->download_path) - 1] = '\0';
+            
+            // Update label to show selected folder
+            char *basename = g_path_get_basename(path);
+            char label_text[256];
+            snprintf(label_text, sizeof(label_text), "Download to: %s", basename);
+            gtk_label_set_text(GTK_LABEL(app->folder_label), label_text);
+            g_free(basename);
+            g_free(path);
+            
+            char log_msg[MAX_PATH_LEN + 50];
+            snprintf(log_msg, sizeof(log_msg), "Download folder set to: %s", app->download_path);
+            append_log(app, log_msg);
+        }
+        g_object_unref(file);
+    } else if (error) {
+        if (error->code != GTK_DIALOG_ERROR_DISMISSED) {
+            append_log(app, "Error selecting folder");
+        }
+        g_error_free(error);
+    }
 }
 
 // Login button clicked
@@ -296,7 +378,12 @@ static void load_saved_credentials(AppState *app) {
 
 // Application activation
 static void activate(GtkApplication *gtk_app, gpointer user_data) {
+    (void)user_data;  // Unused
     AppState *app = g_malloc0(sizeof(AppState));
+    
+    // Initialize download path to current directory
+    strncpy(app->download_path, ".", sizeof(app->download_path) - 1);
+    app->download_path[sizeof(app->download_path) - 1] = '\0';
     
     // Initialize CURL
     curl_global_init(CURL_GLOBAL_ALL);
@@ -365,6 +452,17 @@ static void activate(GtkApplication *gtk_app, gpointer user_data) {
     // Save credentials checkbox
     app->save_creds_check = gtk_check_button_new_with_label("Save credentials (basic encryption)");
     gtk_box_append(GTK_BOX(cred_box), app->save_creds_check);
+    
+    // Folder selection
+    GtkWidget *folder_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    app->folder_button = gtk_button_new_with_label("Choose Download Folder");
+    g_signal_connect(app->folder_button, "clicked", G_CALLBACK(on_folder_chooser_clicked), app);
+    app->folder_label = gtk_label_new("Download to: ./");
+    gtk_widget_set_hexpand(app->folder_label, TRUE);
+    gtk_widget_set_halign(app->folder_label, GTK_ALIGN_START);
+    gtk_box_append(GTK_BOX(folder_box), app->folder_button);
+    gtk_box_append(GTK_BOX(folder_box), app->folder_label);
+    gtk_box_append(GTK_BOX(cred_box), folder_box);
     
     // Login button
     app->login_button = gtk_button_new_with_label("Download Courses");
