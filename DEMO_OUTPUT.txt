@@ -1,0 +1,300 @@
+================================================================================
+                    WeLearn Downloader - Demo Output
+================================================================================
+
+This file demonstrates the new interactive features of the WeLearn downloader.
+
+--------------------------------------------------------------------------------
+SCENARIO 1: Tree View and Selective Download
+--------------------------------------------------------------------------------
+
+$ ./welearn_cli
+
+Credentials not found or failed to load.
+Please enter your WeLearn credentials:
+Username: student@iiserkol.ac.in
+Password: ********
+Save credentials for future use? (y/n): y
+Credentials saved to credentials.dat (encrypted - basic XOR, not secure!).
+
+Fetching login page to get token...
+Login token extracted successfully.
+Attempting login...
+Login successful!
+
+===========================================
+  WeLearn File Download Manager
+===========================================
+
+Choose an option:
+1. Download all files (old behavior)
+2. Select specific files to download (new)
+
+Enter choice (1 or 2): 2
+
+Scanning courses and collecting file information...
+Scanning course: https://welearn.iiserkol.ac.in/course/view.php?id=101
+  Found course: Data Structures and Algorithms
+Scanning course: https://welearn.iiserkol.ac.in/course/view.php?id=102
+  Found course: Operating Systems
+Scanning course: https://welearn.iiserkol.ac.in/course/view.php?id=103
+  Found course: Computer Networks
+--- Scan Complete: Found 23 file(s) ---
+
+How would you like to view the files?
+1. Tree view (hierarchical)
+2. List view (simple table)
+
+Enter choice (1 or 2): 1
+
+========================================
+Files Available for Download (Tree View)
+========================================
+
+📚 Course: Data_Structures_and_Algorithms
+📄 [1] Course_Syllabus.pdf
+📄 [2] Lecture_1_Introduction.pdf
+📄 [3] Lecture_2_Arrays.pdf
+📁 [4] Week_3_Materials (folder)
+  📄 [5] Lecture_3_Linked_Lists.pdf
+  📄 [6] Assignment_1.pdf
+📄 [7] Midterm_Study_Guide.pdf
+
+📚 Course: Operating_Systems
+📄 [8] OS_Course_Overview.pdf
+📄 [9] Chapter_1_Introduction.pdf
+📄 [10] Chapter_2_Processes.pdf
+📁 [11] Lab_Materials (folder)
+  📄 [12] Lab_1_Setup.pdf
+  📄 [13] Lab_2_Scheduling.pdf
+
+📚 Course: Computer_Networks
+📄 [14] Network_Fundamentals.pdf
+📄 [15] TCP_IP_Protocol.pdf
+📄 [16] Network_Security.pdf
+📁 [17] Projects (folder)
+  📄 [18] Project_1_Description.pdf
+  📄 [19] Project_2_Requirements.pdf
+
+========================================
+
+Enter download directory path (press Enter for current directory '.'): ./my_courses
+
+Select files to download:
+  - Enter 'all' to download all files
+  - Enter file numbers separated by commas (e.g., 1,3,5,7)
+  - Enter 'q' to quit without downloading
+
+Your selection: 1,2,5,8,14
+
+Preparing to download 5 file(s)...
+
+--- Starting Downloads ---
+Download location: ./my_courses
+
+[1/5] Downloading: Course_Syllabus.pdf
+Attempting to download resource: https://welearn.iiserkol.ac.in/...
+--> Using filename from header: Course_Syllabus.pdf
+Successfully downloaded: ./my_courses/Data_Structures_and_Algorithms/Course_Syllabus.pdf
+
+[2/5] Downloading: Lecture_1_Introduction.pdf
+Attempting to download resource: https://welearn.iiserkol.ac.in/...
+--> Using filename from header: Lecture_1_Introduction.pdf
+Successfully downloaded: ./my_courses/Data_Structures_and_Algorithms/Lecture_1_Introduction.pdf
+
+[3/5] Downloading: Lecture_3_Linked_Lists.pdf
+Attempting to download resource: https://welearn.iiserkol.ac.in/...
+--> Using filename from header: Lecture_3_Linked_Lists.pdf
+Successfully downloaded: ./my_courses/Data_Structures_and_Algorithms/Lecture_3_Linked_Lists.pdf
+
+[4/5] Downloading: OS_Course_Overview.pdf
+Attempting to download resource: https://welearn.iiserkol.ac.in/...
+--> Using filename from header: OS_Course_Overview.pdf
+Successfully downloaded: ./my_courses/Operating_Systems/OS_Course_Overview.pdf
+
+[5/5] Downloading: Network_Fundamentals.pdf
+Attempting to download resource: https://welearn.iiserkol.ac.in/...
+--> Using filename from header: Network_Fundamentals.pdf
+Successfully downloaded: ./my_courses/Computer_Networks/Network_Fundamentals.pdf
+
+--- Downloads Complete ---
+
+Program finished.
+
+--------------------------------------------------------------------------------
+SCENARIO 2: List View and Download All
+--------------------------------------------------------------------------------
+
+$ ./welearn_cli
+
+Using saved credentials for user: student@iiserkol.ac.in
+
+Fetching login page to get token...
+Login token extracted successfully.
+Attempting login...
+Login successful!
+
+===========================================
+  WeLearn File Download Manager
+===========================================
+
+Choose an option:
+1. Download all files (old behavior)
+2. Select specific files to download (new)
+
+Enter choice (1 or 2): 2
+
+Scanning courses and collecting file information...
+--- Scan Complete: Found 23 file(s) ---
+
+How would you like to view the files?
+1. Tree view (hierarchical)
+2. List view (simple table)
+
+Enter choice (1 or 2): 2
+
+========================================
+Files Available for Download (List View)
+========================================
+No.   Course                         Filename
+----------------------------------------
+[1  ] Data_Structures_and_Algorith   Course_Syllabus.pdf
+[2  ] Data_Structures_and_Algorith   Lecture_1_Introduction.pdf
+[3  ] Data_Structures_and_Algorith   Lecture_2_Arrays.pdf
+[4  ] Data_Structures_and_Algorith   Week_3_Materials (folder)
+[5  ] Data_Structures_and_Algorith   Lecture_3_Linked_Lists.pdf
+[6  ] Data_Structures_and_Algorith   Assignment_1.pdf
+[7  ] Data_Structures_and_Algorith   Midterm_Study_Guide.pdf
+[8  ] Operating_Systems               OS_Course_Overview.pdf
+[9  ] Operating_Systems               Chapter_1_Introduction.pdf
+[10 ] Operating_Systems               Chapter_2_Processes.pdf
+[11 ] Operating_Systems               Lab_Materials (folder)
+[12 ] Operating_Systems               Lab_1_Setup.pdf
+[13 ] Operating_Systems               Lab_2_Scheduling.pdf
+[14 ] Computer_Networks               Network_Fundamentals.pdf
+[15 ] Computer_Networks               TCP_IP_Protocol.pdf
+[16 ] Computer_Networks               Network_Security.pdf
+[17 ] Computer_Networks               Projects (folder)
+[18 ] Computer_Networks               Project_1_Description.pdf
+[19 ] Computer_Networks               Project_2_Requirements.pdf
+========================================
+Total: 19 file(s)
+
+Enter download directory path (press Enter for current directory '.'): ./downloads
+
+Select files to download:
+  - Enter 'all' to download all files
+  - Enter file numbers separated by commas (e.g., 1,3,5,7)
+  - Enter 'q' to quit without downloading
+
+Your selection: all
+
+Preparing to download 19 file(s)...
+
+--- Starting Downloads ---
+Download location: ./downloads
+
+[Downloads proceed for all files...]
+
+--- Downloads Complete ---
+
+Program finished.
+
+--------------------------------------------------------------------------------
+SCENARIO 3: Original Behavior (Mode 1)
+--------------------------------------------------------------------------------
+
+$ ./welearn_cli
+
+Using saved credentials for user: student@iiserkol.ac.in
+
+Fetching login page to get token...
+Login token extracted successfully.
+Attempting login...
+Login successful!
+
+===========================================
+  WeLearn File Download Manager
+===========================================
+
+Choose an option:
+1. Download all files (old behavior)
+2. Select specific files to download (new)
+
+Enter choice (1 or 2): 1
+
+Downloading all files to current directory...
+
+--- Extracting and Processing Course Links ---
+
+Found Course Link: https://welearn.iiserkol.ac.in/course/view.php?id=101
+Processing Course: Data Structures and Algorithms
+Processing page for resources: https://welearn.iiserkol.ac.in/course/view.php?id=101
+Attempting to download resource: https://...
+Successfully downloaded: ./Data_Structures_and_Algorithms/Course_Syllabus.pdf
+...
+
+--- Finished Processing Course Links ---
+
+Program finished.
+
+================================================================================
+                         Directory Structure After Download
+================================================================================
+
+./my_courses/
+├── Data_Structures_and_Algorithms/
+│   ├── Course_Syllabus.pdf
+│   ├── Lecture_1_Introduction.pdf
+│   ├── Lecture_2_Arrays.pdf
+│   ├── Lecture_3_Linked_Lists.pdf
+│   ├── Assignment_1.pdf
+│   └── Midterm_Study_Guide.pdf
+├── Operating_Systems/
+│   ├── OS_Course_Overview.pdf
+│   ├── Chapter_1_Introduction.pdf
+│   ├── Chapter_2_Processes.pdf
+│   ├── Lab_1_Setup.pdf
+│   └── Lab_2_Scheduling.pdf
+└── Computer_Networks/
+    ├── Network_Fundamentals.pdf
+    ├── TCP_IP_Protocol.pdf
+    ├── Network_Security.pdf
+    ├── Project_1_Description.pdf
+    └── Project_2_Requirements.pdf
+
+================================================================================
+                                Feature Highlights
+================================================================================
+
+✓ Custom Download Directory
+  - User specifies: ./my_courses
+  - Auto-created if doesn't exist
+  - Files organized by course
+
+✓ Tree View Display
+  - Visual hierarchy with emojis
+  - Clear course organization
+  - Folder depth indication
+
+✓ List View Display
+  - Simple tabular format
+  - Easy to reference file numbers
+  - Shows all files at once
+
+✓ Selective File Download
+  - Choose specific files: 1,2,5,8,14
+  - Download all: 'all'
+  - Quit option: 'q'
+
+✓ Progress Tracking
+  - Current file number (e.g., [3/5])
+  - Filename being downloaded
+  - Success confirmation
+
+✓ Backward Compatibility
+  - Mode 1 works exactly as before
+  - No breaking changes
+  - Old workflows unaffected
+
+================================================================================

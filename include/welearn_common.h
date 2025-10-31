@@ -13,6 +13,7 @@
 #define CRED_FILE "credentials.dat"
 #define ENCRYPTION_KEY 'S'
 #define INITIAL_VISITED_CAPACITY 50
+#define INITIAL_FILE_LIST_CAPACITY 100
 
 // Cross-platform definitions
 #ifdef _WIN32
@@ -46,6 +47,23 @@ struct VisitedUrls {
     size_t capacity;
 };
 
+// File information for display and selection
+struct FileInfo {
+    char filename[MAX_FILENAME_LEN];
+    char url[MAX_URL_LEN];
+    char course_name[MAX_FILENAME_LEN];
+    char suggested_name[MAX_FILENAME_LEN];
+    int is_folder;
+    int depth;  // For tree view indentation
+};
+
+// List of files collected during scanning
+struct FileList {
+    struct FileInfo *files;
+    size_t count;
+    size_t capacity;
+};
+
 // Function declarations - memory management
 void init_memory_struct(struct MemoryStruct *chunk);
 size_t write_memory_callback(void *contents, size_t size, size_t nmemb, void *userp);
@@ -57,6 +75,14 @@ void init_visited_urls(struct VisitedUrls *visited);
 int add_visited_url(struct VisitedUrls *visited, const char *url);
 int is_url_visited(const struct VisitedUrls *visited, const char *url);
 void free_visited_urls(struct VisitedUrls *visited);
+
+// Function declarations - file list management
+void init_file_list(struct FileList *list);
+int add_file_to_list(struct FileList *list, const char *filename, const char *url, 
+                     const char *course_name, const char *suggested_name, int is_folder, int depth);
+void free_file_list(struct FileList *list);
+void display_file_tree(const struct FileList *list);
+void display_file_list(const struct FileList *list);
 
 // Function declarations - utilities
 char* sanitize_filename(const char* input_filename, char* output_filename, size_t output_size);

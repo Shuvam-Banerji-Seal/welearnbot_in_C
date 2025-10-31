@@ -11,7 +11,12 @@ A modern C application for automating resource downloads from the WeLearn platfo
   - Real-time download progress
   - Activity log viewer
   - Credential management
-* **CLI Version** - Traditional command-line interface
+* **CLI Version** - Enhanced command-line interface with:
+  - **Interactive file selection** - Choose specific files to download
+  - **Tree/List view** - View files hierarchically or in simple list format
+  - **Custom download directory** - Specify where files should be saved
+  - **Selective downloading** - Download all or specific files by number
+  - Traditional "download all" mode for quick batch downloads
 * Automated login and session management
 * Course navigation and resource extraction
 * Smart file naming and organization
@@ -117,12 +122,70 @@ Run the command-line application:
 ./welearn_cli
 ```
 
-The CLI will:
-1. Prompt for credentials (or load saved ones)
-2. Log into WeLearn
-3. Discover all enrolled courses
-4. Download resources from each course
-5. Organize files into course-specific directories
+#### Interactive Mode (NEW!)
+
+The CLI now offers two modes:
+
+**Mode 1: Download All Files (Original Behavior)**
+- Automatically downloads all files from all courses
+- Downloads to current directory
+- No user interaction required
+
+**Mode 2: Interactive File Selection (NEW)**
+
+When you select Mode 2, you get:
+
+1. **Course Scanning** - Scans all enrolled courses and collects file information
+2. **Display Options**:
+   - **Tree View**: Hierarchical display with folders and files organized by course
+   - **List View**: Simple table showing all files with course names
+3. **Custom Download Directory** - Choose where to save files (default: current directory)
+4. **File Selection**:
+   - Enter `all` to download all files
+   - Enter specific file numbers separated by commas (e.g., `1,3,5,7`)
+   - Enter `q` to quit without downloading
+
+#### Example Usage Flow
+
+```bash
+$ ./welearn_cli
+
+# After login...
+Choose an option:
+1. Download all files (old behavior)
+2. Select specific files to download (new)
+
+Enter choice (1 or 2): 2
+
+# Files are scanned...
+How would you like to view the files?
+1. Tree view (hierarchical)
+2. List view (simple table)
+
+Enter choice (1 or 2): 1
+
+# Tree view displayed...
+📚 Course: Data Structures
+  📄 [1] Lecture_1_Introduction.pdf
+  📄 [2] Assignment_1.pdf
+  📁 [3] Week_2_Materials (folder)
+    📄 [4] Lecture_2.pdf
+
+Enter download directory path (press Enter for current directory '.'): ./downloads
+
+Select files to download:
+  - Enter 'all' to download all files
+  - Enter file numbers separated by commas (e.g., 1,3,5,7)
+  - Enter 'q' to quit without downloading
+
+Your selection: 1,2,4
+
+# Downloads only files 1, 2, and 4...
+```
+
+#### Legacy Behavior
+
+The original "download everything" behavior is preserved as Mode 1 for users who prefer the automatic approach.
 
 ## Configuration
 
