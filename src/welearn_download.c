@@ -507,3 +507,295 @@ void extract_course_links_and_process(CURL *curl_handle, const char *html) {
 
     free_visited_urls(&visited_list);
 }
+
+// Collect resources from a page without downloading
+void collect_page_resources(CURL *curl, const char *page_url, const char *course_name, 
+                           struct VisitedUrls *visited, struct FileList *file_list, int depth) {
+    if (!curl || !page_url || !course_name || !visited || !file_list) return;
+    
+    // Check if URL has already been visited
+    if (is_url_visited(visited, page_url)) {
+        return;
+    }
+    
+    // Add URL to visited list
+    if (!add_visited_url(visited, page_url)) {
+        return;
+    }
+    
+    CURLcode res;
+    struct MemoryStruct page_content;
+    init_memory_struct(&page_content);
+    
+    curl_easy_setopt(curl, CURLOPT_URL, page_url);
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_memory_callback);
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, (void *)&page_content);
+    curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(curl, CURLOPT_HTTPGET, 1L);
+    curl_easy_setopt(curl, CURLOPT_FAILONERROR, 0L);
+    
+    char errbuf[CURL_ERROR_SIZE] = {0};
+    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, errbuf);
+    
+    res = curl_easy_perform(curl);
+    
+    if (res != CURLE_OK) {
+        free(page_content.memory);
+        curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, NULL);
+        return;
+    }
+    
+    long http_code = 0;
+    curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &http_code);
+    if (http_code >= 400) {
+        free(page_content.memory);
+        curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, NULL);
+        return;
+    }
+    curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, NULL);
+    
+    const char *html_ptr = page_content.memory;
+    const char *base_url = "https://welearn.iiserkol.ac.in";
+    
+    while (html_ptr != NULL && *html_ptr != '\0') {
+        const char *link_start = strstr(html_ptr, "<a ");
+        if (!link_start) break;
+        
+        const char *href_start = strstr(link_start, "href=\"");
+        if (!href_start) {
+            html_ptr = link_start + 3;
+            continue;
+        }
+        href_start += strlen("href=\"");
+        const char *href_end = strchr(href_start, '"');
+        if (!href_end) {
+            html_ptr = href_start;
+            continue;
+        }
+        
+        size_t url_len = href_end - href_start;
+        char current_url[MAX_URL_LEN];
+        if (url_len < sizeof(current_url) && url_len > 0) {
+            strncpy(current_url, href_start, url_len);
+            current_url[url_len] = '\0';
+            
+            // Extract suggested name from link text
+            char suggested_name[MAX_FILENAME_LEN] = "";
+            const char* tag_end = strchr(href_end, '>');
+            if (tag_end) {
+                const char* text_start = tag_end + 1;
+                const char* text_end = strstr(text_start, "</a>");
+                if (text_end && text_start < text_end) {
+                    size_t text_len = text_end - text_start;
+                    while (text_len > 0 && isspace((unsigned char)*text_start)) {
+                        text_start++;
+                        text_len--;
+                    }
+                    while (text_len > 0 && isspace((unsigned char)text_start[text_len - 1])) {
+                        text_len--;
+                    }
+                    
+                    const char* inner_tag_start = strchr(text_start, '<');
+                    if (inner_tag_start != NULL && inner_tag_start < text_start + text_len) {
+                        const char* inner_tag_end = strchr(inner_tag_start, '>');
+                        if(inner_tag_end && inner_tag_end < text_start + text_len) {
+                            if (inner_tag_end + 1 < text_end) {
+                                text_start = inner_tag_end + 1;
+                                text_len = text_end - text_start;
+                                while (text_len > 0 && isspace((unsigned char)*text_start)) {
+                                    text_start++;
+                                    text_len--;
+                                }
+                                while (text_len > 0 && isspace((unsigned char)text_start[text_len - 1])) {
+                                    text_len--;
+                                }
+                            } else {
+                                text_len = 0;
+                            }
+                        } else {
+                            text_len = 0;
+                        }
+                    }
+                    
+                    if (text_len > 0 && text_len < sizeof(suggested_name)) {
+                        strncpy(suggested_name, text_start, text_len);
+                        suggested_name[text_len] = '\0';
+                    }
+                }
+            }
+            
+            // Check if it's a resource link
+            if ((strstr(current_url, "/mod/resource/view.php?id=") || strstr(current_url, "/pluginfile.php/")) && current_url[0] != '#') {
+                char full_url[MAX_URL_LEN];
+                if (strncmp(current_url, "http", 4) != 0) {
+                    snprintf(full_url, sizeof(full_url), "%s%s", base_url, current_url);
+                } else {
+                    strncpy(full_url, current_url, sizeof(full_url)-1);
+                    full_url[sizeof(full_url)-1] = '\0';
+                }
+                
+                // Determine filename
+                char filename[MAX_FILENAME_LEN];
+                if (strlen(suggested_name) > 0) {
+                    char sanitized[MAX_FILENAME_LEN];
+                    sanitize_filename(suggested_name, sanitized, sizeof(sanitized));
+                    strncpy(filename, sanitized, sizeof(filename)-1);
+                    filename[sizeof(filename)-1] = '\0';
+                } else {
+                    extract_filename_from_url(full_url, filename, sizeof(filename));
+                }
+                
+                // Add to file list
+                add_file_to_list(file_list, filename, full_url, course_name, suggested_name, 0, depth);
+            }
+            // Check if it's a folder link
+            else if (strstr(current_url, "/mod/folder/view.php?id=") && current_url[0] != '#') {
+                char full_url[MAX_URL_LEN];
+                if (strncmp(current_url, "http", 4) != 0) {
+                    snprintf(full_url, sizeof(full_url), "%s%s", base_url, current_url);
+                } else {
+                    strncpy(full_url, current_url, sizeof(full_url)-1);
+                    full_url[sizeof(full_url)-1] = '\0';
+                }
+                
+                // Add folder to list
+                char folder_name[MAX_FILENAME_LEN];
+                if (strlen(suggested_name) > 0) {
+                    strncpy(folder_name, suggested_name, sizeof(folder_name)-1);
+                    folder_name[sizeof(folder_name)-1] = '\0';
+                } else {
+                    snprintf(folder_name, sizeof(folder_name), "Folder");
+                }
+                add_file_to_list(file_list, folder_name, full_url, course_name, suggested_name, 1, depth);
+                
+                // Recursively collect from folder
+                collect_page_resources(curl, full_url, course_name, visited, file_list, depth + 1);
+            }
+        }
+        html_ptr = href_end + 1;
+    }
+    
+    free(page_content.memory);
+}
+
+// Scan all courses and collect files
+void scan_courses_and_collect_files(CURL *curl_handle, const char *html, struct FileList *file_list) {
+    if (!html || !curl_handle || !file_list) return;
+    
+    printf("\n--- Scanning Courses for Files ---\n");
+    
+    struct VisitedUrls visited_list;
+    init_visited_urls(&visited_list);
+    
+    const char *mycourses_marker = "data-key=\"mycourses\"";
+    const char *search_start_ptr = strstr(html, mycourses_marker);
+    const char *html_ptr = search_start_ptr ? search_start_ptr + strlen(mycourses_marker) : html;
+    
+    const char *specific_link_tag_start = "<a class=\"list-group-item list-group-item-action \" href=\"";
+    const char *course_url_pattern = "/course/view.php?id=";
+    const char *base_url = "https://welearn.iiserkol.ac.in";
+    
+    while (html_ptr != NULL && *html_ptr != '\0') {
+        const char *link_tag_start = strstr(html_ptr, specific_link_tag_start);
+        if (!link_tag_start) break;
+        
+        const char *link_start = link_tag_start + strlen(specific_link_tag_start);
+        const char *link_end = strchr(link_start, '"');
+        if (!link_end) {
+            html_ptr = link_start;
+            continue;
+        }
+        
+        size_t url_len = link_end - link_start;
+        char current_url[MAX_URL_LEN];
+        if (url_len < sizeof(current_url) && url_len > 0) {
+            strncpy(current_url, link_start, url_len);
+            current_url[url_len] = '\0';
+            
+            if (strstr(current_url, course_url_pattern)) {
+                char full_course_url[MAX_URL_LEN];
+                if (strncmp(current_url, "http", 4) != 0) {
+                    snprintf(full_course_url, sizeof(full_course_url), "%s%s", base_url, current_url);
+                } else {
+                    strncpy(full_course_url, current_url, sizeof(full_course_url) - 1);
+                    full_course_url[sizeof(full_course_url) - 1] = '\0';
+                }
+                
+                printf("Scanning course: %s\n", full_course_url);
+                
+                // Fetch course page
+                CURLcode res;
+                struct MemoryStruct course_page_content;
+                init_memory_struct(&course_page_content);
+                
+                curl_easy_setopt(curl_handle, CURLOPT_URL, full_course_url);
+                curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, write_memory_callback);
+                curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, (void *)&course_page_content);
+                curl_easy_setopt(curl_handle, CURLOPT_FOLLOWLOCATION, 1L);
+                curl_easy_setopt(curl_handle, CURLOPT_HTTPGET, 1L);
+                curl_easy_setopt(curl_handle, CURLOPT_FAILONERROR, 0L);
+                
+                res = curl_easy_perform(curl_handle);
+                
+                if (res == CURLE_OK) {
+                    long http_code = 0;
+                    curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &http_code);
+                    if (http_code < 400) {
+                        char *course_title = extract_course_title(course_page_content.memory);
+                        if (course_title && strlen(course_title) > 0) {
+                            printf("  Found course: %s\n", course_title);
+                            collect_page_resources(curl_handle, full_course_url, course_title, &visited_list, file_list, 0);
+                            free(course_title);
+                        }
+                    }
+                }
+                
+                free(course_page_content.memory);
+                SLEEP(1);
+            }
+        }
+        
+        html_ptr = link_end + 1;
+    }
+    
+    printf("--- Scan Complete: Found %zu file(s) ---\n\n", file_list->count);
+    
+    free_visited_urls(&visited_list);
+}
+
+// Download selected files
+void download_selected_files(CURL *curl, const struct FileList *list, const int *selections, 
+                            size_t selection_count, const char *base_path) {
+    if (!curl || !list || !selections || selection_count == 0) return;
+    
+    printf("\n--- Starting Downloads ---\n");
+    printf("Download location: %s\n\n", base_path);
+    
+    for (size_t i = 0; i < selection_count; i++) {
+        int file_idx = selections[i] - 1;  // Convert 1-based to 0-based
+        if (file_idx < 0 || (size_t)file_idx >= list->count) {
+            printf("Warning: Invalid selection %d, skipping.\n", selections[i]);
+            continue;
+        }
+        
+        const struct FileInfo *file = &list->files[file_idx];
+        
+        // Skip folders
+        if (file->is_folder) {
+            printf("Skipping folder: %s\n", file->filename);
+            continue;
+        }
+        
+        // Create course directory under base path
+        char course_path[MAX_PATH_LEN];
+        snprintf(course_path, sizeof(course_path), "%s/%s", base_path, file->course_name);
+        create_directory(course_path);
+        
+        // Download the file
+        printf("\n[%zu/%zu] Downloading: %s\n", i + 1, selection_count, file->filename);
+        download_file(curl, file->url, course_path, file->suggested_name);
+        SLEEP(1);
+    }
+    
+    printf("\n--- Downloads Complete ---\n");
+}
