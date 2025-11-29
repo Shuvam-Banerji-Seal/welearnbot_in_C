@@ -1,0 +1,11 @@
+post_install() {
+    echo "welearn-downloader has been installed."
+    echo "You can now use the 'welearn_cli' command to run the CLI version."
+    if [ -f "/usr/bin/welearn_gui" ]; then
+        echo "You can also use the 'welearn_gui' command to run the GUI version."
+    fi
+}
+
+post_remove() {
+    echo "welearn-downloader has been removed."
+}
