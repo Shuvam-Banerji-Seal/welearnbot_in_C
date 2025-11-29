@@ -1,0 +1,15 @@
+pkgbase = welearn-downloader
+	pkgdesc = A modern C application for automating resource downloads from the WeLearn platform.
+	pkgver = 1.0.0
+	pkgrel = 1
+	url = https://github.com/shuvam-banerji-seal/welearn-downloader
+	arch = x86_64
+	license = custom
+	depends = curl
+	depends = zlib
+	depends = openssl
+	optdepends = gtk4: for GUI version
+	source = welearn-downloader-1.0.0.tar.gz
+	sha256sums = 66a72702f4cd212daa49e2ae90ee2511a66efcfa9d22c15dfef82605707c8bc6
+
+pkgname = welearn-downloader

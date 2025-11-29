@@ -227,6 +227,13 @@ make CFLAGS="-Wall -Wextra -g -Iinclude"
 
 ### Cross-Platform Notes
 
+#### Arch Linux
+An Arch Linux package is available in the root of this repository. You can build and install it using the following commands:
+```bash
+# Build and install the package
+makepkg -si
+```
+
 #### Linux
 The default target platform. All features fully supported.
 
@@ -368,7 +375,7 @@ This project is provided as-is for educational purposes. Use responsibly and eth
 This program is provided as-is without any warranty. The author is not responsible for any damages, data loss, or issues arising from its use. Use this tool responsibly and ethically, respecting the terms of service of the WeLearn platform.
 
 ## Acknowledgments
-
+* **Author**: Shuvam Banerji Seal
 * Built with GTK4 for the GUI
 * Uses libcurl for HTTP operations
 * Inspired by the need for efficient course material management
